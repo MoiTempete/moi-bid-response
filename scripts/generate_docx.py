@@ -2,7 +2,9 @@
 """
 生成投标技术响应 Word 文档 — 结构化技术文档 + 国标多级自动编号。
 
-输入：JSON（从 stdin 读取，格式见 SKILL.md Step 5）
+输入：JSON（从文件或 stdin 读取，格式见 SKILL.md Step 5）
+      - 推荐方式：python3 generate_docx.py output.docx data.json
+      - 兼容方式：echo '<JSON>' | python3 generate_docx.py output.docx
 输出：格式化的 docx 文件
 
 特性和格式（匹配往期2真实投标文件）：
@@ -43,10 +45,11 @@ FONT_SIZE_H2 = Pt(15)            # 一级目录 15pt
 FONT_SIZE_H3 = Pt(14)            # 二级目录 14pt
 FONT_SIZE_H4 = Pt(14)            # 三级目录及以下 14pt
 LINE_SPACING = 1.5               # 全局行距
-HEADING_SPACE_BEFORE = Pt(12)    # 标题段前距
-HEADING_SPACE_AFTER = Pt(12)     # 标题段后距
-BODY_SPACE_BEFORE = Pt(4)        # 正文段前距
-BODY_SPACE_AFTER = Pt(4)         # 正文段后距
+HEADING_SPACE_BEFORE = Pt(0)     # 标题段前距（不加额外间距）
+HEADING_SPACE_AFTER = Pt(0)      # 标题段后距（不加额外间距）
+BODY_SPACE_BEFORE = Pt(0)        # 正文段前距（不加额外间距）
+BODY_SPACE_AFTER = Pt(0)         # 正文段后距（不加额外间距）
+BODY_INDENT = Cm(0.74)           # 正文首行缩进（约2个中文字符）
 
 TABLE_HEADER_BG = "D9D9D9"       # 表头灰底
 
@@ -376,24 +379,39 @@ def generate_response_docx(data: dict, output_path: str):
 
 def main():
     if len(sys.argv) < 2:
-        print("用法: echo '<JSON>' | python3 generate_docx.py <输出文件名.docx>")
+        print("用法:")
+        print("  方式1（从文件读取）: python3 generate_docx.py <输出文件名.docx> <JSON文件.json>")
+        print("  方式2（从stdin读取）: echo '<JSON>' | python3 generate_docx.py <输出文件名.docx>")
         print()
-        print("从 stdin 读取 JSON（格式见 SKILL.md Step 5），生成 Word 文档。")
+        print("生成 Word 文档，格式见 SKILL.md Step 5。")
         sys.exit(1)
 
     output_path = sys.argv[1]
+    json_file = sys.argv[2] if len(sys.argv) >= 3 else None
 
-    # 从 stdin 读取 JSON
-    raw = sys.stdin.read()
-    if not raw:
-        print("错误：stdin 无数据", file=sys.stderr)
-        sys.exit(1)
-
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(f"错误：JSON 解析失败 — {e}", file=sys.stderr)
-        sys.exit(1)
+    # 读取 JSON（优先从文件，fallback 到 stdin）
+    if json_file:
+        # 方式1：从 JSON 文件读取（推荐，避免管道编码问题）
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            print(f"错误：JSON 文件不存在 — {json_file}", file=sys.stderr)
+            sys.exit(1)
+        except json.JSONDecodeError as e:
+            print(f"错误：JSON 解析失败 — {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # 方式2：从 stdin 读取（兼容旧用法）
+        raw = sys.stdin.read()
+        if not raw:
+            print("错误：stdin 无数据，也未指定 JSON 文件路径", file=sys.stderr)
+            sys.exit(1)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            print(f"错误：JSON 解析失败 — {e}", file=sys.stderr)
+            sys.exit(1)
 
     generate_response_docx(data, output_path)
 
