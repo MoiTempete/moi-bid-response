@@ -83,7 +83,7 @@ npx skills add https://github.com/MoiTempete/moi-bid-response --skill moi-bid-re
 ### 方式一：一行命令安装（推荐）
 
 ```bash
-npx skills add https://github.com/op741MoiTempete8/moi-bid-response-skill --skill moi-bid-response
+npx skills add https://github.com/MoiTempete/moi-bid-response --skill moi-bid-response
 ```
 
 ### 方式二：把下面这段话直接发给 AI
