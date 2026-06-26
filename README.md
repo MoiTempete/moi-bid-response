@@ -16,13 +16,13 @@
 ## 30 秒开始
 
 ```bash
-npx skills add https://github.com/MoiTempete/moi-bid-response-skill --skill moi-bid-response
+npx skills add https://github.com/MoiTempete/moi-bid-response --skill moi-bid-response
 ```
 
 也可以直接把这段话发给有 shell 权限的 AI Agent：
 
 ```text
-帮我安装 moi-bid-response skill。请把 https://github.com/MoiTempete/moi-bid-response-skill 克隆到 ~/.claude/skills/moi-bid-response，安装完成后检查 SKILL.md、references/、scripts/ 是否存在。
+帮我安装 moi-bid-response skill。请把 https://github.com/MoiTempete/moi-bid-response 克隆到 ~/.claude/skills/moi-bid-response，安装完成后检查 SKILL.md、references/、scripts/ 是否存在。
 ```
 
 已经安装过的话，用这段话更新：
@@ -93,7 +93,7 @@ npx skills add https://github.com/op741MoiTempete8/moi-bid-response-skill --skil
 > 帮我安装 `moi-bid-response` 这个 Claude Code skill。请按下面步骤做：
 >
 > 1. 确保 `~/.claude/skills/` 目录存在（不存在就创建）
-> 2. 执行 `git clone https://github.com/MoiTempete/moi-bid-response-skill.git ~/.claude/skills/moi-bid-response`
+> 2. 执行 `git clone https://github.com/MoiTempete/moi-bid-response.git ~/.claude/skills/moi-bid-response`
 > 3. 验证：`ls ~/.claude/skills/moi-bid-response/` 应该看到 `SKILL.md`、`references/`、`scripts/` 三项
 > 4. 告诉我安装好了，之后我说"写投标响应"之类的话就会触发这个 skill
 
@@ -102,7 +102,7 @@ npx skills add https://github.com/op741MoiTempete8/moi-bid-response-skill --skil
 ### 方式三：手动命令行
 
 ```bash
-git clone https://github.com/MoiTempete/moi-bid-response-skill.git ~/.claude/skills/moi-bid-response
+git clone https://github.com/MoiTempete/moi-bid-response.git ~/.claude/skills/moi-bid-response
 ```
 
 ### 触发方式
