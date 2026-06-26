@@ -1,11 +1,9 @@
-# Bid Response Skill · 投标技术响应文件编写
+# Moi Bid Response Skill · 投标技术响应文件编写
 
 ![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square)
 ![Skill](https://img.shields.io/badge/Skill-Agent-111111?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square)
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-Supported-6B5B95?style=flat-square)
-
-> 🌏 **English version: [README.en.md](./README.en.md)**
 
 一个适配 Claude Code 等 Agent 环境的投标技能，用于根据招标文件技术规格书（docx）**自动编写投标技术响应文件**（docx）。
 
