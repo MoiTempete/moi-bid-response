@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a parsing, response quality, or docx output bug.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Tender document samples and the generated response are the fastest way to make this actionable.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the issue clearly.
+      placeholder: "The parser missed chapter 4's sub-clauses..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      placeholder: "All sub-clauses should be extracted with their numbering."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can we reproduce it?
+      description: Include the prompt, tender document structure, or generated response.
+      placeholder: |
+        1. Use this tender document...
+        2. Parse with parse_tender.py...
+        3. Check chapter 4 in the output...
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Files or output excerpts
+      description: Attach or paste relevant output excerpts (JSON parse results, generated text, etc.).
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "Claude Code / Codex, macOS 15, Python 3.12..."
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Tender parsing
+        - Response writing / quality
+        - Word document generation
+        - Workflow / style configuration
+        - Documentation
+        - Other
+    validations:
+      required: true

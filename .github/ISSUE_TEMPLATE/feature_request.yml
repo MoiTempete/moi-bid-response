@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest a new feature, industry template, or workflow improvement.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Please describe the real bid-writing situation behind the request.
+      placeholder: "When responding to equipment procurement tenders, I often need..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What do you want the Skill to do?
+      placeholder: "Add a template for equipment procurement responses..."
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples or references
+      description: Tender excerpts, response samples, or format references are welcome.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Industry template / writing guide
+        - Tender parsing
+        - Word document generation
+        - Workflow / style configuration
+        - Installation / packaging
+        - Documentation
+        - Other
+    validations:
+      required: true

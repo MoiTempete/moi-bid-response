@@ -1,0 +1,17 @@
+name: Question
+description: Ask about installation, usage, workflows, or generated output.
+title: "question: "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      placeholder: "How should I handle a tender that has both a template appendix and section-specific format requirements?"
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What have you tried? Which agent and organization mode are you using?

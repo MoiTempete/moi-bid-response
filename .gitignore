@@ -1,0 +1,27 @@
+# Local test workspace — demos, test files, downloaded assets, debug scripts.
+# Skill iterates only on SKILL.md / references/ / scripts/.
+local-tests/
+
+# Generated output files from test runs
+*.docx
+!test/fixtures/*.docx
+
+# Node + macOS
+node_modules/
+.DS_Store
+*.log
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
