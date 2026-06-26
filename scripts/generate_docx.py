@@ -85,8 +85,8 @@ def setup_styles(doc: Document):
     pf = style.paragraph_format
     pf.line_spacing = LINE_SPACING
     pf.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    pf.space_before = Pt(24)
-    pf.space_after = Pt(24)
+    pf.space_before = Pt(0)
+    pf.space_after = Pt(0)
 
     # Heading 2-5（各级目录）
     for i, size in [(2, FONT_SIZE_H2), (3, FONT_SIZE_H3), (4, FONT_SIZE_H4), (5, FONT_SIZE_H4)]:
@@ -96,7 +96,7 @@ def setup_styles(doc: Document):
             continue
         style.font.name = FONT_HEADING
         style.font.size = size
-        style.font.bold = False
+        style.font.bold = True
         style.font.color.rgb = None  # 黑色
         style._element.rPr.rFonts.set(qn("w:eastAsia"), FONT_HEADING)
         pf = style.paragraph_format
@@ -264,8 +264,10 @@ def add_heading_with_numbering(doc: Document, text: str, level: int):
 
 
 def add_body_paragraph(doc: Document, text: str):
-    """添加正文段落"""
+    """添加正文段落（首行缩进2字符）"""
     para = doc.add_paragraph(style="Normal")
+    pf = para.paragraph_format
+    pf.first_line_indent = BODY_INDENT
     run = para.add_run(text)
     run.font.name = FONT_BODY
     run._element.rPr.rFonts.set(qn("w:eastAsia"), FONT_BODY)
@@ -346,6 +348,81 @@ def render_content(doc: Document, content_items: list[dict]):
 # 主函数
 # ============================================================
 
+def count_chars_in_content(content_items: list[dict]) -> int:
+    """递归统计 content 数组中的总字符数"""
+    total = 0
+    for item in content_items:
+        if item.get("type") == "p":
+            total += len(item.get("text", ""))
+        elif item.get("type") == "table":
+            for row in item.get("headers", []) + [c for r in item.get("rows", []) for c in r]:
+                total += len(str(row))
+        elif "heading" in item and "content" in item:
+            total += len(item.get("heading", ""))
+            total += count_chars_in_content(item.get("content", []))
+    return total
+
+
+def analyze_word_count(data: dict, output_path: str):
+    """生成后字数自检：逐章统计字数，与大纲目标对比。
+
+    如果 JSON sections 中有 `word_target` 字段，则对比并警告；
+    否则仅输出每章字数供人工核对。
+    """
+    sections = data.get("sections", [])
+    if not sections:
+        return
+
+    print(f"\n📊 字数自检（含标题和正文）：")
+    print(f"{'章节':<30} {'字数':>6} {'目标':>6} {'状态':>6}")
+    print("-" * 52)
+
+    total_chars = 0
+    total_target = 0
+    warnings = []
+
+    for sec in sections:
+        heading = sec.get("heading", "(无标题)")
+        content = sec.get("content", [])
+        chars = len(heading) + count_chars_in_content(content)
+        target = sec.get("word_target", None)
+
+        total_chars += chars
+        if target:
+            total_target += target
+
+        # 截断过长的标题
+        label = heading[:28] + ".." if len(heading) > 28 else heading
+
+        if target:
+            ratio = chars / target if target > 0 else 1.0
+            if ratio < 0.6:
+                status = "⚠️ 偏少"
+                warnings.append(f"  {label}: 实际{chars}字 / 目标{target}字 (仅{ratio:.0%})，建议扩写")
+            elif ratio > 1.5:
+                status = "⚠️ 偏多"
+                warnings.append(f"  {label}: 实际{chars}字 / 目标{target}字 ({ratio:.0%})，建议精简")
+            else:
+                status = "✅"
+            print(f"{label:<30} {chars:>6} {target:>6} {status:>6}")
+        else:
+            print(f"{label:<30} {chars:>6} {'—':>6} {'—':>6}")
+
+    print("-" * 52)
+    if total_target > 0:
+        print(f"{'合计':<30} {total_chars:>6} {total_target:>6}")
+    else:
+        print(f"{'合计':<30} {total_chars:>6}")
+
+    if warnings:
+        print(f"\n⚠️  以下章节字数与大纲目标有显著差距：")
+        for w in warnings:
+            print(w)
+        print(f"\n💡 建议对上述章节进行扩写或精简后再重新生成文档。")
+
+    return total_chars, warnings
+
+
 def generate_response_docx(data: dict, output_path: str):
     """主生成函数"""
     doc = Document()
@@ -374,7 +451,10 @@ def generate_response_docx(data: dict, output_path: str):
     # 5. 保存
     doc.save(output_path)
     print(f"✅ 响应文件已生成：{output_path}")
-    print(f"   格式：A4 / 宋体12pt正文 / 黑体标题 / 国标多级自动编号 / 1.5倍行距")
+    print(f"   格式：A4 / 宋体12pt正文(首行缩进2字符) / 黑体加粗标题 / 国标多级自动编号 / 1.5倍行距")
+
+    # 6. 字数自检
+    analyze_word_count(data, output_path)
 
 
 def main():
