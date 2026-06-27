@@ -264,7 +264,10 @@ def add_heading_with_numbering(doc: Document, text: str, level: int):
 
 
 def add_body_paragraph(doc: Document, text: str):
-    """添加正文段落（首行缩进2字符）"""
+    """添加正文段落（首行缩进2字符）。空白段落自动跳过。"""
+    # 跳过空白段落（仅含空白字符或为空）
+    if not text or not text.strip():
+        return None
     para = doc.add_paragraph(style="Normal")
     pf = para.paragraph_format
     pf.first_line_indent = BODY_INDENT
