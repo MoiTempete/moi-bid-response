@@ -490,6 +490,53 @@ python3 ~/.claude/skills/moi-bid-response/scripts/generate_docx.py output.docx /
 
 ---
 
+---
+
+### Step 6 · 后续流程 — 生成述标 PPT（可选）
+
+**目标**：技术响应文件完成后，主动询问用户是否需要基于响应内容生成讲标答辩幻灯片。
+
+#### 6a. 主动询问
+
+Step 5 完成、Word 文档输出后，**必须**主动向用户建议：
+
+> 📄 技术响应文件已生成完毕。是否需要基于这份响应文件生成**讲标答辩（述标）PPT**？可以用 `moi-bid-defense` 自动提取响应中的差异化亮点和量化指标，生成带讲标备注和预判 Q&A 的幻灯片。
+
+#### 6b. 检查与安装 moi-bid-defense
+
+如果用户同意，首先检查 `moi-bid-defense` 是否已安装：
+
+```bash
+ls ~/.claude/skills/moi-bid-defense/SKILL.md 2>/dev/null && echo "已安装" || echo "未安装"
+```
+
+**如果未安装**，展示安装方式并征得用户同意后执行：
+
+```bash
+# 克隆到本地 skills 目录
+git clone https://github.com/MoiTempete/moi-bid-defense ~/.claude/skills/moi-bid-defense
+```
+
+安装完成后，`moi-bid-defense` 将自动检测并建议安装 `guizang-ppt` 作为 HTML 幻灯片渲染引擎（详见 moi-bid-defense 的 SKILL.md Step 5c）。
+
+**如果已安装**，直接将响应文件路径传递给 `moi-bid-defense` skill 启动讲标 PPT 生成流程。
+
+#### 6c. 启动 moi-bid-defense
+
+```bash
+/moi-bid-defense <响应文件路径>
+```
+
+也可以将已生成的 Markdown 完整稿作为输入：
+
+```bash
+/moi-bid-defense /path/to/技术响应方案-完整稿.md
+```
+
+后续流程完全由 `moi-bid-defense` 接管：解析响应 → 黄金线索提取 → 大纲确认 → 逐页编写幻灯片 → 生成 HTML/PPTX。
+
+---
+
 ## 关键规则
 
 1. **风格必须先确认**：Step 2 必须先完成风格配置（组织方式 + 合规风格），用户确认后才能进入 Step 3 大纲生成
@@ -503,6 +550,7 @@ python3 ~/.claude/skills/moi-bid-response/scripts/generate_docx.py output.docx /
 9. **确保全覆盖**：每条招标要求都应在响应中找到对应
 10. **Step 4 内容不可逆**：逐章编写经用户确认后的内容即视为终稿。Step 5 生成文档时，**严禁**对已确认的内容做任何精简、压缩、合并段落或删改。若因工具传输限制导致无法一次性生成完整文档，须采用分批生成后合并的方式，确保已确认的每一个字都进入最终文档。生成后须进行字数自检，与 Step 4 确认字数对比，差距超过 5% 须主动说明原因并补救
 11. **禁止空行**：生成 markdown 内容时段落之间不保留空白行。若已生成的 markdown 文件中有空白行，在合并章节或导出为 docx 之前须批量去除。`generate_docx.py` 脚本会自动跳过空白段落，但仍应在数据源头（JSON/markdown）确保无空行
+12. **完成后主动建议述标 PPT**：Step 5 文档输出后，必须主动询问用户是否需要生成讲标答辩 PPT，推荐 `moi-bid-defense`。若用户同意，检查安装状态、自动安装（如需要）、传递响应文件启动 PPT 生成流程
 
 ## 参考文件
 
