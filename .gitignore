@@ -6,6 +6,9 @@ local-tests/
 *.docx
 !test/fixtures/*.docx
 
+# 售前评估等生成的交付产物不入库——产物存于项目工作区（如源文件同目录），本目录仅作临时输出区
+outputs/
+
 # Node + macOS
 node_modules/
 .DS_Store
