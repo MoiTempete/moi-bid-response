@@ -118,11 +118,14 @@ git clone https://github.com/MoiTempete/moi-bid-response.git ~/.claude/skills/mo
 
 Skill 本身是结构化工作流，Agent 会逐步引导：
 
-1. **解析招标文件** — 运行 `parse_tender.py` 提取结构、重点标记、附件格式
-2. **风格配置** — 分析招标特征，推荐组织方式（A/B/C）和合规风格（1/2），用户确认
-3. **生成响应大纲** — 带分类标注 + 篇幅约束 + 覆盖映射，等用户确认
-4. **逐章编写响应** — 核心优先，每章写完后即时调整
-5. **输出 Word 文档** — 结构化 JSON → `generate_docx.py` → 格式化 .docx
+1. **解析招标文件与硬约束抽取** — `parse_tender.py` 提取结构/重点标记/强制条款；`extract_constraints.py` 抽取工期日期并检测冲突；识别招标自带响应模板
+2. **素材能力清单提取** — 有参考素材时用 `extract_capability.py` 或 subagent 出能力清单
+3. **风格配置** — 分析招标特征，推荐组织方式（A/B/C）、合规风格（1/2）、技术方案安放方式，用户确认
+4. **生成响应大纲** — 带分类标注 + 篇幅配额（相对比例）+ 覆盖映射，等用户确认
+5. **编制技术响应偏离表** — `generate_deviation_table.py` 出骨架，逐条填响应与偏离状态
+6. **逐章编写响应** — 核心优先，按配置节奏（逐章/按一级章节）确认
+7. **输出 Word 文档** — `generate_docx_direct.py` **直读 markdown 生成**（无中间格式）
+8. **交付前自检三查** — `verify_docx.py` 内容完整性、`check_invented.py` 自创交付物、`audit_citation.py` 引用审计
 
 详细说明见 [`SKILL.md`](./SKILL.md)。
 
@@ -155,10 +158,19 @@ moi-bid-response/
 ├── SKILL.md              ← Skill 主文件：工作流、原则、常见错误
 ├── README.md             ← 本文件
 ├── scripts/
-│   ├── parse_tender.py       ← 招标 docx 解析脚本
-│   └── generate_docx.py      ← 响应 docx 生成脚本
+│   ├── parse_tender.py              ← 招标 docx 解析（结构/重点标记/强制条款）
+│   ├── extract_constraints.py       ← 硬约束抽取与日期冲突对账
+│   ├── extract_capability.py        ← 参考素材能力清单提取
+│   ├── generate_deviation_table.py  ← 技术响应偏离表骨架生成
+│   ├── generate_docx_direct.py      ← ★ 直读 markdown 生成 Word（默认路径）
+│   ├── generate_docx.py             ← JSON 输入生成（已降级为备选）
+│   ├── merge_docx.py                ← 合并多个 docx
+│   ├── verify_docx.py               ← 源↔产物双向核对
+│   ├── check_invented.py            ← 自创交付物检测 + 素材数值残留扫描
+│   └── audit_citation.py            ← 引用依据占比审计
 └── references/
-    └── writing-guide.md      ← 响应编写规范、模板、篇幅控制指南
+    ├── writing-guide.md             ← 响应编写规范、模板、篇幅控制指南
+    └── doc-generation-strategy.md   ← 文档生成策略
 ```
 
 ## 核心编写原则
@@ -205,6 +217,22 @@ Bug、响应质量问题、新行业模板需求——欢迎开 Issue 或 PR。�
 ## 更新日志
 
 ### 2026-06-26
+
+**超长文档加固与交付前自检（本版）**
+
+针对"超长 Word 丢内容""过度设计""工期排错""偏离表缺失"四类实战问题做系统性加固：
+
+- **新增 `generate_docx_direct.py`（默认路径）**：直读 markdown 生成 Word，全程无 JSON 中间格式，从根本上消除长文档静默丢内容；排版参数全部可配（`doc_config.json`），支持正文/标题字体字号、英文字体、字符制首行缩进、行距段距、国标多级自动编号。
+- **`generate_docx.py` 降级为备选**：运行即打印弃用警示，字体与排版参数改为从直读脚本导入以保证两条路径输出一致。
+- **补齐 `merge_docx.py`**：SKILL.md 长期引用但此前缺失；修正跨文档元素索引的错误实现。
+- **新增 `verify_docx.py`**：段落级存在性 + 表格 XML 直数 + 总字数差异完整归因，输出"无法解释的差异"必须为 0。
+- **新增 `check_invented.py`**：自动筛出招标未要求的《》自创交付物（避免变成合同义务），并扫描素材特征数值残留（如把往期标书的质保 1 年、99.99% 可用率带入新项目）。
+- **新增 `extract_constraints.py`**：抽取工期/日期/有效期并检测冲突，含"绝对日期节点 vs 相对期限"的**可行性推算**（如"开标9月24日 + 60日历日"已晚于"11月15日交付"→ 判为不可行）。
+- **新增 `audit_citation.py`**：量化引用依据占比，用于应对"套用他项目标书"的质疑。
+- **新增 `generate_deviation_table.py`**：从规格书自动生成偏离表骨架。
+- **新增 `extract_capability.py`**：参考素材能力清单提取。
+- **`parse_tender.py` 重点标记识别重构**：区分"标题加粗（版式）"与"正文加粗（实质强调）"，过滤封面拆字与纯标题行，新增**强制条款**（应/须/必须/不得）识别——解决无★号规格书重点标记严重虚高的问题。
+- **SKILL.md 新增**：硬约束对账、条款冲突识别、建设边界"下限/上限"、偏离表独立成步、交付前自检三查、篇幅配额改相对比例、素材数值替换清单、subagent 并行提取指引、确认节奏可配。
 
 **generate_docx.py 格式修正与功能增强**
 

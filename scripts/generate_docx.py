@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-生成投标技术响应 Word 文档 — 结构化技术文档 + 国标多级自动编号。
+【JSON 输入模式 · 已降级为备选路径】
 
-输入：JSON（从文件或 stdin 读取，格式见 SKILL.md Step 5）
-      - 推荐方式：python3 generate_docx.py output.docx data.json
-      - 兼容方式：echo '<JSON>' | python3 generate_docx.py output.docx
-输出：格式化的 docx 文件
+⚠ 重要：本脚本把全部正文序列化为 JSON 再生成。当响应文件超过约 1.5 万字
+   或 JSON 超过 50KB 时，序列化与传输极易被截断，表现为"文档尾部内容消失"
+   或"部分章节空白"。这是历史上反复出现的内容丢失问题。
 
-特性和格式（匹配往期2真实投标文件）：
-- A4 页面，左/右边距 3.2cm，上/下边距 2.5cm
-- 宋体正文 12pt，1.5 倍行距
-- 黑体标题（H2~H5），1.5 倍行距
-- 国标多级自动编号：一、/ 1. / 1.1. / 1.1.1. / ① / (1)
-- 嵌入式表格（宋体 11pt，黑体表头加粗灰底）
-- 无页眉页脚（简洁风格）
+   ▶ 请优先使用 scripts/generate_docx_direct.py（直读 markdown，无中间格式）。
+   ▶ 本脚本仅为兼容既有调用方式而保留，并在运行时打印警示。
+
+输出格式（与 generate_docx_direct.py 保持一致）：
+- 正文 仿宋 小四(12pt)，首行缩进 2 字符（firstLineChars，非固定值）
+- 标题 黑体 四号(14pt)，不缩进
+- 全文英文 Times New Roman；1.5 倍行距；段前段后 0
+- 国标多级自动编号；表格 10.5pt
 """
+
 
 import json
 import sys
@@ -36,20 +38,30 @@ except ImportError:
 # 格式常量（匹配往期2真实格式）
 # ============================================================
 
-FONT_BODY = "宋体"
-FONT_HEADING = "黑体"
-FONT_SIZE_BODY = Pt(12)          # 正文 12pt
-FONT_SIZE_TABLE = Pt(11)         # 表格 11pt
-FONT_SIZE_H1 = Pt(16)            # 文档标题 16pt
-FONT_SIZE_H2 = Pt(15)            # 一级目录 15pt
-FONT_SIZE_H3 = Pt(14)            # 二级目录 14pt
-FONT_SIZE_H4 = Pt(14)            # 三级目录及以下 14pt
+# 字体与字号统一从直读脚本导入，保证两条生成路径输出一致
+try:
+    from generate_docx_direct import DEFAULT_FORMAT as _F
+    _OK = True
+except Exception:                                  # 独立运行时的回退
+    _F = {}
+    _OK = False
+
+FONT_BODY = _F.get("body_cn", "仿宋")
+FONT_HEADING = _F.get("heading_cn", "黑体")
+FONT_EN = _F.get("en_font", "Times New Roman")
+FONT_SIZE_BODY = Pt(_F.get("body_size_pt", 12))    # 正文 小四
+FONT_SIZE_TABLE = Pt(_F.get("table_size_pt", 10.5))
+FONT_SIZE_H1 = Pt(_F.get("title_size_pt", 14))     # 文档标题 四号
+FONT_SIZE_H2 = Pt(_F.get("heading_size_pt", 14))   # 一级目录 四号
+FONT_SIZE_H3 = Pt(_F.get("heading_size_pt", 14))
+FONT_SIZE_H4 = Pt(_F.get("heading_size_pt", 14))
 LINE_SPACING = 1.5               # 全局行距
 HEADING_SPACE_BEFORE = Pt(0)     # 标题段前距（不加额外间距）
 HEADING_SPACE_AFTER = Pt(0)      # 标题段后距（不加额外间距）
 BODY_SPACE_BEFORE = Pt(0)        # 正文段前距（不加额外间距）
 BODY_SPACE_AFTER = Pt(0)         # 正文段后距（不加额外间距）
-BODY_INDENT = Cm(0.74)           # 正文首行缩进（约2个中文字符）
+BODY_INDENT_CHARS = _F.get("first_line_chars", 2)   # 正文首行缩进字符数
+BODY_INDENT = Cm(0.74)           # 回退用固定值（仅在不支持字符缩进时使用）
 
 TABLE_HEADER_BG = "D9D9D9"       # 表头灰底
 
@@ -272,8 +284,11 @@ def add_body_paragraph(doc: Document, text: str):
     pf = para.paragraph_format
     pf.first_line_indent = BODY_INDENT
     run = para.add_run(text)
-    run.font.name = FONT_BODY
-    run._element.rPr.rFonts.set(qn("w:eastAsia"), FONT_BODY)
+    run.font.name = FONT_EN
+    _rf = run._element.rPr.rFonts
+    _rf.set(qn("w:ascii"), FONT_EN)
+    _rf.set(qn("w:hAnsi"), FONT_EN)
+    _rf.set(qn("w:eastAsia"), FONT_BODY)
     run.font.size = FONT_SIZE_BODY
     return para
 
@@ -460,7 +475,16 @@ def generate_response_docx(data: dict, output_path: str):
     analyze_word_count(data, output_path)
 
 
+def _warn_deprecated():
+    print("=" * 72)
+    print("⚠ generate_docx.py（JSON 输入模式）已降级为备选路径。")
+    print("  长文档请改用：python3 generate_docx_direct.py --config doc_config.json")
+    print("  JSON 中间格式在内容超过约 1.5 万字时存在静默丢内容的风险。")
+    print("=" * 72)
+
+
 def main():
+    _warn_deprecated()
     if len(sys.argv) < 2:
         print("用法:")
         print("  方式1（从文件读取）: python3 generate_docx.py <输出文件名.docx> <JSON文件.json>")

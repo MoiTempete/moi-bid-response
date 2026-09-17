@@ -54,14 +54,57 @@ def get_run_format_info(run) -> dict:
     return info
 
 
-def detect_emphasis(text: str, run_info: dict, all_run_infos: list[dict]) -> dict:
+# 强制性措辞：当规格书不使用★号时，这是识别"硬条款"的主要信号
+MANDATORY_PHRASES = [
+    "必须", "不得", "严禁", "不允许", "禁止", "须", "应当",
+    "至少", "不低于", "不超过", "不少于", "不高于", "不晚于",
+    "应满足", "应支持", "应具备", "应提供", "应采用", "应符合",
+    "应实现", "应配置", "应保证", "应能", "应可", "应按照",
+]
+
+# 封面/版式噪声：命中即不视为"重点条款"
+COVER_NOISE = re.compile(
+    r"^(目\s*录|编\s*制|审\s*核|审\s*批|批\s*准|技术规格书|招标文件|投标文件|"
+    r"第[一二三四五六七八九十]+章|附件|附表)\s*[:：]?$"
+)
+
+
+def is_cover_noise(text: str) -> bool:
+    """过滤封面拆字（如"技""术""规""格""书"）与纯版式行。"""
+    t = re.sub(r"\s", "", text)
+    if len(t) <= 2:                            # 单字/双字，几乎必为封面拆字
+        return True
+    if COVER_NOISE.match(t):
+        return True
+    if re.match(r"^20\d{2}年\d{1,2}月$", t):     # 封面日期
+        return True
+    return False
+
+
+def is_pure_heading(text: str) -> bool:
+    """纯标题行判断：短、无句读、无强制措辞。
+
+    标题加粗属于版式，不应计入"重点标记"，否则会把目录树误报成重点条款。
+    """
+    t = text.strip()
+    if len(t) > 40:
+        return False
+    if re.search(r"[。；：，,]", t):
+        return False
+    if any(p in t for p in MANDATORY_PHRASES):
+        return False
+    return True
+
+
+def detect_emphasis(text: str, run_info: dict, all_run_infos: list[dict],
+                    is_heading: bool = False) -> dict:
     """检测重点标记程度，返回 emphasis 对象"""
     score = 0
     signals = []
 
-    # 加粗
+    # 加粗：标题加粗属版式（低权重），正文加粗才是实质性强调
     if run_info.get("bold"):
-        score += 30
+        score += 10 if is_heading else 30
         signals.append("bold")
 
     # 标色
@@ -91,10 +134,23 @@ def detect_emphasis(text: str, run_info: dict, all_run_infos: list[dict]) -> dic
         score += 20
         signals.append(f"keyword:{','.join(found_kw)}")
 
+    # 强制性措辞：★号缺失时识别硬条款的主要依据
+    found_md = [p for p in MANDATORY_PHRASES if p in text]
+    if found_md:
+        score += 25
+        signals.append(f"mandatory:{','.join(found_md[:3])}")
+
+    # 量化指标：含硬性数值的要求通常须逐条响应
+    if re.search(r"(不低于|不超过|不少于|不高于|至少|小于|大于)\s*\d", text):
+        score += 15
+        signals.append("quantified")
+
     return {
         "score": min(score, 100),
         "is_emphasized": score >= 30,  # 阈值为 30 分即视为重点
         "signals": signals,
+        "is_mandatory": bool(found_md),
+        "is_heading": is_heading,
     }
 
 
@@ -166,16 +222,18 @@ def parse_tender(filepath: str) -> dict:
 
         # 获取段落中所有 run 的格式
         runs_info = []
+        # 预判是否标题：标题加粗属版式，不应计为实质重点标记
+        _is_heading = is_pure_heading(text)
         full_emphasis = {"score": 0, "is_emphasized": False, "signals": []}
         for run in para.runs:
             ri = get_run_format_info(run)
             runs_info.append(ri)
-            emp = detect_emphasis(run.text, ri, runs_info)
+            emp = detect_emphasis(run.text, ri, runs_info, _is_heading)
             if emp["score"] > full_emphasis["score"]:
                 full_emphasis = emp
 
         # 二次检测：对整段文本做关键词检测
-        text_emp = detect_emphasis(text, {}, [])
+        text_emp = detect_emphasis(text, {}, [], _is_heading)
         if text_emp["score"] > full_emphasis["score"]:
             full_emphasis = text_emp
 
@@ -266,6 +324,25 @@ def parse_tender(filepath: str) -> dict:
                     result["sections"].append(sibling)
                     section_stack[0] = sibling
 
+    # 过滤：剔除封面噪声与纯标题行（标题加粗属版式，不应报成"重点条款"）
+    raw = result.get("emphasized_items", [])
+    cleaned = []
+    for it in raw:
+        t = it.get("text", "")
+        if is_cover_noise(t):
+            continue
+        if is_pure_heading(t) and len(re.sub(r"\s", "", t)) <= 20:
+            continue
+        cleaned.append(it)
+    result["emphasized_items"] = cleaned
+    result["emphasized_items_raw_count"] = len(raw)
+
+    # 强制条款单独归集：无★号规格书编制偏离表与核查覆盖的主要依据
+    result["mandatory_items"] = [
+        it for it in cleaned if it.get("emphasis", {}).get("is_mandatory")
+    ]
+    result["mandatory_count"] = len(result["mandatory_items"])
+
     # 统计
     result["heading_count"] = len(result["flat_headings"])
     result["emphasized_count"] = len(result["emphasized_items"])
@@ -318,7 +395,10 @@ def main():
         print("=" * 60)
         print(f"📄 文件：{result['file']}")
         print(f"📊 共 {result['total_paragraphs']} 段，识别 {result['heading_count']} 个标题")
-        print(f"⭐ 重点标记条目：{result['emphasized_count']} 个")
+        print(f"⭐ 重点标记条目：{result['emphasized_count']} 个"
+              f"（原始 {result.get('emphasized_items_raw_count', result['emphasized_count'])} 个，"
+              f"已滤除封面噪声与纯标题行）")
+        print(f"❗ 强制条款（应/须/必须/不得…）：{result.get('mandatory_count', 0)} 个")
         print("=" * 60)
         print("\n📑 章节结构：\n")
         print(format_sections(result["sections"]))
